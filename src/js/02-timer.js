@@ -1,112 +1,100 @@
-import flatpickr from 'flatpickr';
-// Додатковий імпорт стилів
-import 'flatpickr/dist/flatpickr.min.css';
+import flatpickr from "flatpickr";
+import "flatpickr/dist/flatpickr.min.css";
 import { Notify } from 'notiflix/build/notiflix-notify-aio';
-require('flatpickr/dist/themes/dark.css');
+
+
+const inputElement = document.querySelector("#datetime-picker");
+const startButton = document.querySelector('[data-start]');
+      
+const currentDate = Date.now();
+let targetDate = null;
+let countdownInterval = null;
+
+startButton.disabled = false;
+inputElement.disabled = false;
 
 const refs = {
-  startBtn: document.querySelector('button[data-start]'),
-  valueOutput: document.querySelectorAll('.value'),
-};
 
-refs.startBtn.disabled = true;
-
-// Створений клас таймеру//
-class Countdown {
-  constructor({ updateValueOnPage, stopCountdown }) {
-    this.dateForTimer = null;
-    this.isCountdownRun = false;
-    this.countdownId = null;
-    this.updateValueOnPage = updateValueOnPage;
-    this.onStopCountdown = stopCountdown;
-  }
-
-  startCountdown() {
-    refs.startBtn.disabled = true;
-    this.isCountdownRun = true;
-    this.countdownId = setInterval(() => {
-      const leftTime = this.dateForTimer - Date.now();
-      console.log(leftTime);
-      const timer = convertMs(leftTime);
-      const arrayFromSpan = [...refs.valueOutput];
-      const timeValues = Object.values(timer);
-      this.updateValueOnPage(arrayFromSpan, timeValues);
-      this.onStopCountdown(leftTime, this.countdownId);
-      if (!this.isCountdownRun) {
-        this.updateValueOnPage(arrayFromSpan, 0);
-      }
-    }, 1000);
-  }
+    daysUI: document.querySelector('[data-days]'),
+    hoursUI: document.querySelector('[data-hours]'),
+    minutesUI: document.querySelector('[data-minutes]'),
+    secondsUI: document.querySelector('[data-seconds]'),
 }
 
-const myCountdown = new Countdown({
-  updateValueOnPage: setValueInOutput,
-  stopCountdown: stopCountdown,
-});
-
-refs.startBtn.addEventListener('click', () => myCountdown.startCountdown());
-
-const options = {
-  enableTime: true,
-  time_24hr: true,
-  defaultDate: new Date(),
-  minuteIncrement: 1,
-  onClose(selectedDates) {
-    if (myCountdown.isCountdownRun) {
-      return;
-    }
-    myCountdown.dateForTimer = selectedDates[0].getTime();
-    if (myCountdown.dateForTimer <= Date.now()) {
-      refs.startBtn.disabled = true;
-      return Notify.failure('Please choose a date in the future', {
-        width: '350px',
-        position: 'center-top', // 'right-top' - 'right-bottom' - 'left-top' - 'left-bottom' - 'center-top' - 'center-bottom' - 'center-center'
-        timeout: 4000,
-      });
-    }
-    refs.startBtn.disabled = false;
-  },
-};
-
-flatpickr('#datetime-picker', options);
+function addLeadingZero(value) { 
+    return String(value).padStart(2,"0");
+}
 
 function convertMs(ms) {
-  // Number of milliseconds per unit of time
+ 
   const second = 1000;
   const minute = second * 60;
   const hour = minute * 60;
   const day = hour * 24;
 
-  // Remaining days
-  const days = Math.floor(ms / day);
-  // Remaining hours
-  const hours = Math.floor((ms % day) / hour);
-  // Remaining minutes
-  const minutes = Math.floor(((ms % day) % hour) / minute);
-  // Remaining seconds
-  const seconds = Math.floor((((ms % day) % hour) % minute) / second);
+  const days = addLeadingZero(Math.floor(ms / day));
+  const hours = addLeadingZero(Math.floor((ms % day) / hour));
+  const minutes = addLeadingZero(Math.floor(((ms % day) % hour) / minute));
+  const seconds = addLeadingZero(Math.floor((((ms % day) % hour) % minute) / second));
 
   return { days, hours, minutes, seconds };
 }
 
-function setValueInOutput(elemArr, value) {
-  for (let i = 0; i < elemArr.length; i += 1) {
-    if (Array.isArray(value)) {
-      elemArr[i].textContent = addLeadingZero(value[i]);
-    } else {
-      elemArr[i].textContent = addLeadingZero(value);
+flatpickr(inputElement, {
+
+    enableTime: true,
+    time_24hr: true,
+    defaultDate: Date.now(),
+    minuteIncrement: 1,
+
+    onClose(selectedDates) {
+    
+        const selectedDate = selectedDates[0];
+
+        if (selectedDate > currentDate) {
+         
+            
+            Notify.info(`Date is in the future`)
+            startButton.disabled = false;
+            targetDate = selectedDate;
+            
+
+        } else {
+    
+             Notify.warning(`Warning! The date is in the past`),
+            startButton.disabled = true;
+        }
     }
-  }
-}
+});
 
-function addLeadingZero(value) {
-  return String(value).padStart(2, '0');
-}
+startButton.addEventListener("click", () => { 
 
-function stopCountdown(time, countdown) {
-  //console.log(Math.floor(time / 1000));
-  if (Math.floor(time / 1000) <= 0) {
-    clearInterval(countdown);
-    myCountdown.isCountdownRun = false;
-  }
+    const timeRemaining = targetDate - Date.now();
+     
+    const countdown = convertMs(timeRemaining);
+    console.log(countdown);
+    
+    countdownInterval = setInterval(() => { 
+
+    const timeRemaining = targetDate - Date.now();
+    const countdown = convertMs(timeRemaining);
+        
+        updateTimerUI(countdown);
+        startButton.disabled = true;
+        inputElement.disabled = true;
+
+        if (timeRemaining <= 1000)  {
+         
+            clearInterval(countdownInterval);
+          
+    }
+  }, 1000);
+
+});
+
+function updateTimerUI(countdown) {
+    refs.daysUI.textContent = countdown.days;
+    refs.hoursUI.textContent = countdown.hours;
+    refs.minutesUI.textContent = countdown.minutes;
+    refs.secondsUI.textContent = countdown.seconds;
 }
